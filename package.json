@@ -1,0 +1,14 @@
+{
+  "name": "uebersicht-template.widget",
+  "version": "1.0.0",
+  "description": "An Uebersicht widget template",
+  "main": "index.jsx",
+  "author": "Joe Annis",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "eslint": "6.8.0",
+    "eslint-plugin-react": "7.19.0"
+  },
+  "dependencies": {}
+}
