@@ -1,5 +1,5 @@
 {
-  "name": "Template Widget",
-  "description": "Widget description",
+  "name": "Open Pull Request Status Widget",
+  "description": "Gives the status of your open GitHub PRs",
   "author": "Joe Annis"
 }

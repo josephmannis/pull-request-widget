@@ -1,7 +1,7 @@
 {
-  "name": "uebersicht-template.widget",
+  "name": "uebersicht-pullrequest.widget",
   "version": "1.0.0",
-  "description": "An Uebersicht widget template",
+  "description": "An Uebersicht widget that shows the status of your open PRs",
   "main": "index.jsx",
   "author": "Joe Annis",
   "license": "MIT",

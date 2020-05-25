@@ -1,124 +1,142 @@
-import { styled, css } from 'uebersicht';
 
-/**
- * This must be prefixed before the URL in any API call. For example:
- * let url = `${PROXY}myapi.com/v1/products`
- */
-const PROXY = 'http://127.0.0.1:41417/';
+import { styled } from 'uebersicht';
 
 
-/**
- * An object with the initial state of your widget.
- * If you provide a custom updateState function you might need to define the 
- * initial state that gets passed on initial render of the widget.
- * before any command has been run.
- *
- * This is optional and can be deleted. If you delete it, it takes the form { output: '' }
- */
-export const initialState = {
-  output: 'This is your example widget!',
-  error: '',
-}
+const PROXY = 'http://127.0.0.1:41417/'
+const BASE_URL = `${PROXY}https://api.github.com/graphql`
+const GITHUB_KEY = ''
 
-/**
- * Good practice for tracking your event types.
- */
 const eventCreator = {
-  example: 'EXAMPLE_EVENT_TYPE',
+  fetchSuceeded: 'FETCH_SUCCEEDED',
+  fetchFailed: 'FETCH_FAILED'
 }
 
-/**
- * When provided, this function must return the next state, which will be passed as props to your render function. 
- * The default function will return output and error from the event object.
- * 
- * Interact with this function by calling the dispatch function.
- * 
- * @param { type: string, data: any } event 
- * @param { any } previousState 
- */
+const currentDate = () => {
+  let date = new Date(Date.now());
+  return `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()} ${date.getHours() > 12 ? 'PM' : 'AM'}`
+}
+
+export const initialState = {
+  pullRequests: [],
+  error: '',
+  updtedAt: currentDate()
+}
+
 export const updateState = (event, previousState) => {
     switch (event.type) {
-        case eventCreator.example: return { output: event.data }
+        case eventCreator.fetchSuceeded: 
+          return { pullRequests: event.data, updatedAt: currentDate() }
+        case eventCreator.fetchFailed: 
+          return {  updatedAt: currentDate(), error: 'Could not fetch PRs. Did you provide an API key?' }
         default: return previousState;
     }
 };
 
+const getPrsFromResponse = (data) => data.viewer.pullRequests.nodes.filter(pr => pr.viewerDidAuthor)
 
-/**
- * A function that is called the first time your widget loads. Many
- * widgets won't need this, but you can use this function to perform any initial setup for
- * more advanced use cases. For example, instead of relying on periodic shell commands, you
- * might want to open and listen to WebSocket events to update your widget.
- * 
- * This function is optional and can be deleted.
- * 
- * @param { ({type: string, data: any}) => void } dispatch: A function used to interact with updateState. Takes an event type and a data object.
- */
-export const init = (dispatch) => {
-    // dispatch({type: eventCreator.example, data: []});
+const requestPrs = async (dispatch) => {
+  let prQuery = {
+    query: "query { viewer { pullRequests(first: 20, states: [OPEN]) { nodes { url viewerDidAuthor reviewDecision title } } } }"
+  }
+
+  fetch(BASE_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `bearer ${GITHUB_KEY}`
+    },
+    body: JSON.stringify(prQuery)
+  })
+  .then(res => res.json())
+  .then(res => dispatch({type: eventCreator.fetchSuceeded, data: getPrsFromResponse(res.data)}))
+  .catch(error => dispatch({type: eventCreator.fetchFailed, error: error}))
 }
 
-/**
- * This is executed periodically, defined by refreshFrequency (below). 
- * 
- * It can take two forms. You may only use one form at a time. 
- * 
- * This is the first form. It receives the dispatch function and allows one to perform an action.
- * 
- * This is optional and can be deleted.
- * 
- * @param { ({type: string, data: any}) => void } dispatch: A function used to interact with updateState. Takes an event type and a data object.
- */
-export const command = async (dispatch) => {
-  
-};
+export const command = async (dispatch) => requestPrs(dispatch)
 
-/**
- * This is the second form. Setting this to a string will execute the provided script command.
- */
-// export const command = 'echo Hello World'
+export const refreshFrequency = 600000; // 10m
 
-/**
- * An number specifying how often command (above) is executed.
- */
-export const refreshFrequency = 1.8e6; // 30m
-
-
-/**
- * An object or string defining the CSS rules to applied to the root of your widget (your outermost element).
- * It is most commonly used control the position of your widget. 
- * It is converted to a CSS class name using the Emotion CSS-in-JS library.\
- * 
- * This is optional and can be deleted.
- */
 export const className = `
   left: 2em;
   top: 2em;
-  font-family: -apple-system;
-  z-index: 1;
   width: 30%;
   max-height: 50%;
 `;
 
-
 const Widget = styled.div`
-  background-color: white;
+  font-family: Avenir;
+  background-color: transparent;
+  color: white;
   border-radius: 14px;
-  padding: 4em;
-  text-align: center;
 `
 
-/**
- * If you know React functional components you know how render works. The props passed to 
- * this function is whatever state your updateState function returns. If you don't provide 
- * your own updateState function, the default props that are passed are output and error,
- * containing the output your command produced and any error that might have occurred. 
- * 
- * @param { any } state: The current state
- * @param { ({type: string, data: any}) => void } dispatch: A function used to interact with updateState. Takes an event type and a data object.
- */
+const PullRequestWrapper = styled.div`
+  border-bottom: .25px solid white; 
+  padding: 2em 0;
+  text-transform: capitalize;
+
+  & a {
+    text-decoration: none;
+    color: white;
+  }
+
+  & h3 {
+    margin-top: 0;
+  }
+`
+
+const mapStatusToEmoji = (status) => {
+  switch(status) {
+    case 'CHANGES_REQUESTED':
+      return '💢'
+    case 'APPROVED':
+      return '🎉'
+    default: 
+      return '👁'
+  }
+}
+
+const getReviewDecisionText = (status) => {
+  if (status) {
+    return status.toLowerCase().replace('_', ' ')
+  }
+
+  return 'Awaiting Review'
+}
+
+const PullRequest = ({title, url, status}) => (
+  <PullRequestWrapper>
+    <h3><a href={url}>{title}</a></h3>
+    {`${mapStatusToEmoji(status)} ${getReviewDecisionText(status)}`}
+  </PullRequestWrapper>
+)
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`
+
+const Title = styled.h1`
+  margin: 0;
+`
+
+const Refresh = styled.button`
+  padding: 0;
+  background-color: transparent;
+  color: white;
+  border: none;
+  font-size: 1.5em;
+`
+
 export const render = (state, dispatch) => (
   <Widget>
-    { state.error ? `Error retrieving: ${state.error}` : state.output }
+    <Header>
+      <Title> Open Pull Requests </Title>
+      <Refresh onClick={() => requestPrs(dispatch)}>{'\u21BA'}</Refresh>
+    </Header>
+    <p>Updated at {state.updatedAt}</p>
+    { state.error ? state.error : 
+      state.pullRequests.map((pr, i) => <PullRequest key={i} title={pr.title} url={pr.url} status={pr.reviewDecision}/>)
+    }
   </Widget>
 );
