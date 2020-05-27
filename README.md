@@ -14,7 +14,7 @@ If you want to see PRs on private repositories, you also need to give it full `r
 **Be sure you don't share this token with anyone. Delete it from GitHub if you think someone has it.**
 
 #### Configure the Widget
-1. Download the widget binary from the releases tab.
+1. Download the widget binary (`uebersicht-pullrequest.widget.zip`) from the releases tab.
 2. Drop the folder into your Übersicht widget folder.
 3. Open `index.jsx` and add your personal github API key to the `GITHUB_KEY` constant in `src/api.js`. Save the file.
 
