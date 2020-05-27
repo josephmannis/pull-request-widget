@@ -1,10 +1,7 @@
-
 import { styled } from 'uebersicht';
-
-
-const PROXY = 'http://127.0.0.1:41417/'
-const BASE_URL = `${PROXY}https://api.github.com/graphql`
-const GITHUB_KEY = ''
+import { requestPrs } from './src/api.js'
+import { createPr } from './src/model.js'
+import { getContentForPrEvent, scrollbarStyle } from './src/viewUtil.js'
 
 const eventCreator = {
   fetchSuceeded: 'FETCH_SUCCEEDED',
@@ -32,41 +29,39 @@ export const updateState = (event, previousState) => {
     }
 };
 
-const getPrsFromResponse = (data) => data.viewer.pullRequests.nodes.filter(pr => pr.viewerDidAuthor)
+const getPrsFromResponse = (data) => {
+  let prs = []
+  data.viewer.pullRequests.nodes.forEach(pr => prs.push(createPr(pr)))
+  return prs
+}
 
-const requestPrs = async (dispatch) => {
-  let prQuery = {
-    query: "query { viewer { pullRequests(first: 20, states: [OPEN]) { nodes { url viewerDidAuthor reviewDecision title } } } }"
-  }
-
-  fetch(BASE_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `bearer ${GITHUB_KEY}`
-    },
-    body: JSON.stringify(prQuery)
-  })
+const refreshPrs = (dispatch) => {
+  requestPrs()
   .then(res => res.json())
   .then(res => dispatch({type: eventCreator.fetchSuceeded, data: getPrsFromResponse(res.data)}))
   .catch(error => dispatch({type: eventCreator.fetchFailed, error: error}))
 }
 
-export const command = async (dispatch) => requestPrs(dispatch)
+export const command = async (dispatch) => refreshPrs(dispatch)
 
 export const refreshFrequency = 600000; // 10m
 
 export const className = `
+  box-sizing: border-box;
   left: 2em;
   top: 2em;
   width: 30%;
-  max-height: 50%;
+  height: 60%;
 `;
 
 const Widget = styled.div`
   font-family: Avenir;
   background-color: transparent;
   color: white;
-  border-radius: 14px;
+  overflow: auto;
+  height: 100%;
+  padding-right: 1em;
+  ${scrollbarStyle};
 `
 
 const PullRequestWrapper = styled.div`
@@ -84,29 +79,10 @@ const PullRequestWrapper = styled.div`
   }
 `
 
-const mapStatusToEmoji = (status) => {
-  switch(status) {
-    case 'CHANGES_REQUESTED':
-      return '💢'
-    case 'APPROVED':
-      return '🎉'
-    default: 
-      return '👁'
-  }
-}
-
-const getReviewDecisionText = (status) => {
-  if (status) {
-    return status.toLowerCase().replace('_', ' ')
-  }
-
-  return 'Awaiting Review'
-}
-
-const PullRequest = ({title, url, status}) => (
+const PullRequest = ({title, url, lastEvent}) => (
   <PullRequestWrapper>
     <h3><a href={url}>{title}</a></h3>
-    {`${mapStatusToEmoji(status)} ${getReviewDecisionText(status)}`}
+    { getContentForPrEvent(lastEvent) }
   </PullRequestWrapper>
 )
 
@@ -132,11 +108,11 @@ export const render = (state, dispatch) => (
   <Widget>
     <Header>
       <Title> Open Pull Requests </Title>
-      <Refresh onClick={() => requestPrs(dispatch)}>{'\u21BA'}</Refresh>
+      <Refresh onClick={() => refreshPrs(dispatch)}>{'\u21BA'}</Refresh>
     </Header>
     <p>Updated at {state.updatedAt}</p>
     { state.error ? state.error : 
-      state.pullRequests.map((pr, i) => <PullRequest key={i} title={pr.title} url={pr.url} status={pr.reviewDecision}/>)
+      state.pullRequests.map((pr, i) => <PullRequest key={i} title={pr.title} url={pr.url} lastEvent={pr.event}/>)
     }
   </Widget>
 );
