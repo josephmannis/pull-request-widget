@@ -16,7 +16,7 @@ If you want to see PRs on private repositories, you also need to give it full `r
 #### Configure the Widget
 1. Download the widget binary from the releases tab.
 2. Drop the folder into your Übersicht widget folder.
-3. Open `index.jsx` and add your personal github API key to the `GITHUB_KEY` constant. Save the file.
+3. Open `index.jsx` and add your personal github API key to the `GITHUB_KEY` constant in `src/api.js`. Save the file.
 
 Your widget should be running. 💵
 
